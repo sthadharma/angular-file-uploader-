@@ -11,10 +11,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.14.3/ui-bootstrap-tpls.js"></script>
 	<script>
 		(function(angular) {
+
 		  	var app = angular.module('myApp', []);
+		  		app.controller('MainCtrl',['$scope', function($scope) {
+		  			$scope.src = 'https://cdn.esewa.com.np/documents/users/364/364696/HZtVSL1Dtv4nXk1FuTCg94XnH7FnLOq0.jpg';
+		  		}]);
 				app.directive('fileUploader', function() {
 				  	return {
 					    restrict : 'E',
+					    require : '?^ngModel',
 					    templateUrl : 'template.html',
 					    require : '^ngModel',
 					    scope : {
@@ -26,52 +31,94 @@
 					    	ngModel : '=',
 					    },
 					    link: function(scope, element, attr, ngCtrl) {
+					    	if (scope.ngModel) {
+					    		fetch(scope.ngModel).then(function(res){
+					    			var fileType = getInputFileType(res.url);
+					    			if ()
+					    			console.log(res);
+					    		})
+					    		.catch(function(err) {
+					    			console.log(err);
+					    		})
+					    		console.log(scope.ngModel);
+					    	}
+
+					    	function isFileImageType(inputFileExtension) {
+					    		var imgExtensionList = ['png', 'jpg', 'jpeg', 'gif', 'bmp'];
+					    		return imgExtensionList.indexOf(inputFileExtension);
+					    	}
+
 					      	element.bind('change', function(event) {
-					      	var img;
-					        var reader = new FileReader();
-		                    reader.onload = function (loadEvent) {
-		                        var inputFileObj = {
+					      		scope.errorMsg = "";
+					      		var reader = new FileReader();
+					      		scope.inputFileObj = {
 	                                lastModified: event.target.files[0].lastModified,
 	                                lastModifiedDate: event.target.files[0].lastModifiedDate,
 	                                name: event.target.files[0].name,
 	                                size: event.target.files[0].size / (1024*1024),
 	                                type: event.target.files[0].type,
-	                                data: loadEvent.target.result,
-	                                resolution : getImageResolution(loadEvent.target.result)
 		                        };
-
-		                        if (isInputFileGood(inputFileObj)) {
-		                        	console.log('good');
+		                        reader.onload = function(loadEvent) {
+						      		if (isFileImageType(scope.inputFileObj.name)) {
+						      			var img = new Image;
+						      			img.onload = function() {
+						      				scope.inputFileObj.resolution = img.width + "x" + img.height;
+						      				scope.inputFileObj.imgData = img.src;
+						      				handleAfterLoadEvent(scope.inputFileObj, true);
+						      			}
+						      			img.src = reader.result;
+						      		} else {
+						      			scope.inputFileObj.fileData = loadEvent.target.result;
+						      			handleAfterLoadEvent(scope.inputFileObj);
+						      		}
 		                        }
-	            //                 var imgTag ='<img id="inputImage" src="' + inputFileObj.data + '" alt="img" style="height:200px; width:250px">';
-	            //                 var filePreviewDiv = '<div id="imgContainer" class="col-xs-1"> \
-													// 	<span style="position:absolute;top:0;left:245px;color:red;font-size:20px;cursor:pointer;" onMouseOver="this.style= ng-click="abnc()"><i class="fa fa-times" aria-hidden="true"></i> \
-													// 	</span> \
-													// 	' + imgTag + ' \
-													// </div>';
-	            //                 element.append(angular.element(filePreviewDiv));
-		           //              var uploadedImage = document.querySelector('img');
-		           //              var imageWidth = uploadedImage.naturalWidth;
-		           //              var imageHeight = uploadedImage.naturalHeight;
+		                        reader.readAsDataURL(event.target.files[0]);
+
+		                    function handleAfterLoadEvent(inputFileObj, isImage){
+		                    	var inputFileCorrectness = getInputFileCorrectness(inputFileObj, isImage);
+			      				if (isInputFileGood(inputFileCorrectness, isImage)) {
+			      					scope.$apply();
+			      					setNgModelValue(inputFileObj, isImage);
+			      				} else {
+			      					loadErrorMsg(inputFileCorrectness);
+			      				}
 		                    }
 
-	                    	reader.readAsDataURL(event.target.files[0]);
-
-	                    	function getImageResolution(imgData) {
-	                    		var imgDiv = '<img id="inputImageForImageTesting" class="hidden" src="' + imgData + '" alt="img" style="height:200px; width:250px">'
-	                            element.append(angular.element(imgDiv));
-	                            var imgObj = document.querySelector('img');
-	                            
-	                            return  String(imgObj.naturalWidth) + "x" + String(imgObj.naturalHeight);
+		                    function loadErrorMsg(fileCorrectness) {
+	                    		var badProps = [];
+	                    		angular.forEach(fileCorrectness, function(value, key) {
+	                    			if (value === false) {
+	                    				badProps.push(key);
+	                    			}
+	                    		});
+	                    		scope.errorMsg = "Incorrect " + badProps.join(", ");
+	                    		scope.removeFile();
+	                    		scope.$apply();
 	                    	}
 
-	                    	function isInputFileGood(inputFileObj) {
+	                    	function getInputFileCorrectness(inputFileObj, isImage) {
 	                    		scope.minSize = scope.minSize || 0;
+	                    		scope.maxSize = 25;
 	                    		var isSizeGood = inputFileObj.size > scope.minSize && inputFileObj.size < scope.maxSize;
 	                    		var isTypeGood = isInputTypeGood(scope.type, getInputFileType(inputFileObj.name), inputFileObj.type);
-	                    		var isResolutionGood = isResolutionForImageGood(scope.maxResolution, scope.minResolution, img)
+	                    			                    		
+	                    		if (isImage) {
+	                    			return {
+	                    				'size' : isSizeGood,
+	                    				'file type' : isTypeGood,
+	                    				'resolution' : isResolutionForImageGood(scope.maxResolution, scope.minResolution, inputFileObj.resolution)
+	                    			};
+	                    		} else {
+	                    			return {
+	                    				'size' : isSizeGood,
+	                    				'file type' : isTypeGood
+	                    			};
+	                    		}
+	                    	}
 
-	                    		return isSizeGood && isTypeGood && isResolutionGood;
+	                    	function isInputFileGood(fileCorrectness, isImage) {
+	                    		var isFileGood = fileCorrectness.size && fileCorrectness.type;
+	                    		return isImage ?  isFileGood && fileCorrectness.resolution : isFileGood;
 	                    	}
 
 	                    	function getInputFileType(name) {
@@ -83,21 +130,34 @@
 	                    		return type ? scope.type == fileExtension || scope.type == fileType : true;
 	                    	}
 
-	                    	function isResolutionForImageGood(maxResolution, minResolution, uploadedImg) {
-	                    		if (uploadedImg) {
-	                    			maxResolution = maxResolution || '4920 x 3264'; // resolution of 16MP
-	                    			minResolution = minResolution || '176 x 120'; // resolution of QCIF
-	                    			var maxResolutionArray = maxResolution.split("x").map(function(str) {
-	                    				return Number(str);
-	                    			});
-	                    			var minResolutionArray = minResolution.split("x").map(function(str) {
-	                    				return Number(str);
-	                    			});
-	                    			return (maxResolutionArray[0] < uploadedImg.naturalWidth && minResolutionArray[0] > uploadedImg.naturalWidth) && 
-	                    					(maxResolutionArray[1] < uploadedImg.naturalHeight && minResolutionArray[1] > uploadedImg.naturalHeight)
-	                    		} 
-	                    		return true;
+	                    	function isResolutionForImageGood(maxResolution, minResolution, inputImageResolution) {
+	                    		var imageResolution = getArrayFromString(inputImageResolution);
+                    			
+                    			maxResolution = maxResolution || '4920 x 3264'; // resolution of 16MP
+                    			minResolution = minResolution || '176 x 120'; // resolution of QCIF
+                    			
+                    			var maxResolutionArray = getArrayFromString(maxResolution);
+                    			var minResolutionArray = getArrayFromString(minResolution);
+
+                    			var isHeightGood = imageResolution[0] < maxResolutionArray[0] && imageResolution[0] > minResolutionArray[0];
+                    			var isWidthGood = imageResolution[1] < maxResolutionArray[1] && imageResolution[1] > minResolutionArray[1];
+
+                    			return isHeightGood && isWidthGood;
 	                    	}
+
+	                    	function getArrayFromString(string) {
+	                    		return string.split("x").map(function(str) {
+	                    			return Number(str);
+	                    		});
+	                    	}
+
+	                    	scope.removeFile = function() {
+	                    		scope.inputFileObj = {};
+	                    	};
+
+	                    	function setNgModelValue(inputFileObj, isImage) {
+
+	                    	}                	
 					    })
 				    },
 				};
@@ -106,14 +166,53 @@
 	</script>
 </head>
 <body>
-<div>
-	<file-uploader type="" max-size="" min-size="" ng-model="a" max-resolution="" min-resolution=""></file-uploader>
+<div ng-controller="MainCtrl">
+	<file-uploader type="pdf" max-size="" min-size="" ng-model="src" max-resolution="800x600" min-resolution=""></file-uploader>
 </body>
 </html>
 <script id="template.html" type="text/ng-template">
 	<div id="fileInputContainer">
-		<input type="file" name="file" ng-model="inputFile">
+		<label for="fileInput" id="fileInputLabel">Choose File</label>
+		<input type="file" name="file" id="fileInput" class="hidden" ng-model="inputFile">
+		<div ng-if="errorMsg">
+			<span  class="errMsg">{{errorMsg}}</span>
+		</div>
+		
 	</div>
+	<div id="filePreviewDiv" ng-if="inputFileObj.name">
+		<div class="row">
+			<div class="pull-left" id="fileNameContainer">
+				<span>{{inputFileObj.name}}</span>
+			</div>
+			<div class="pull-right">
+				<button id="removeFileBtn" class="btn btn-default" ng-click="removeFile()">Remove</button>
+			</div>
+		</div>
+		<div id="imageContainer" ng-if="inputFileObj.imgData">
+			<img id="inputImage" class="img-thumbnail" ng-src="{{inputFileObj.imgData}}" alt="Preview Image">
+		</div>
+	</div>
+
 </script>
+<style>
+	#fileInputLabel {
+		line-height: 16px;
+	    padding: .2em .4em;
+	    margin: .2em;
+	}
+	#inputImage {
+		height: 200px;
+		width: 200px;	
+	}
+	#fileNameContainer {
+		text-overflow: ellipsis;
+	    white-space: nowrap;
+	    width: 200px;
+	    overflow: hidden;
+	}
+	.errMsg {
+		color: red;
+	}
+</style>
 </script>
 
