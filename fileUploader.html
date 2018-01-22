@@ -90,7 +90,7 @@
 
 	                    	function getInputFileCorrectness(inputFileObj, isImage) {
 	                    		scope.minSize = scope.minSize || 0;
-	                    		scope.maxSize = 25;
+	                    		scope.maxSize = scope.maxSize || 25;
 	                    		var isSizeGood = inputFileObj.size > scope.minSize && inputFileObj.size < scope.maxSize;
 	                    		var isTypeGood = isInputTypeGood(scope.type, getInputFileType(inputFileObj.name), inputFileObj.type);
 	                    			                    		
@@ -175,7 +175,7 @@
 </head>
 <body>
 <div ng-controller="MainCtrl">
-	<file-uploader type="pdf" max-size="" min-size="" ng-model="src" max-resolution="" min-resolution="1000x1000"></file-uploader>
+	<file-uploader type="jpg" max-size="0.5" min-size="" ng-model="src" max-resolution="" min-resolution=""></file-uploader>
 	<div>
 		<button ng-click="getFile()">get filk</button>
 	</div>
