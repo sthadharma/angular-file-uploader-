@@ -14,7 +14,9 @@
 
 		  	var app = angular.module('myApp', []);
 		  		app.controller('MainCtrl',['$scope', function($scope) {
-		  			$scope.src = 'https://cdn.esewa.com.np/documents/users/364/364696/HZtVSL1Dtv4nXk1FuTCg94XnH7FnLOq0.jpg';
+		  			// $scope.src = 'https://cdn.esewa.com.np/documents/users/364/364696/HZtVSL1Dtv4nXk1FuTCg94XnH7FnLOq0.jpg';
+		  			$scope.getFile = function() {
+		  				console.log($scope.src);	  			}
 		  		}]);
 				app.directive('fileUploader', function() {
 				  	return {
@@ -31,24 +33,7 @@
 					    	ngModel : '=',
 					    },
 					    link: function(scope, element, attr, ngCtrl) {
-					    	if (scope.ngModel) {
-					    		fetch(scope.ngModel).then(function(res){
-					    			var fileType = getInputFileType(res.url);
-					    			if ()
-					    			console.log(res);
-					    		})
-					    		.catch(function(err) {
-					    			console.log(err);
-					    		})
-					    		console.log(scope.ngModel);
-					    	}
-
-					    	function isFileImageType(inputFileExtension) {
-					    		var imgExtensionList = ['png', 'jpg', 'jpeg', 'gif', 'bmp'];
-					    		return imgExtensionList.indexOf(inputFileExtension);
-					    	}
-
-					      	element.bind('change', function(event) {
+					    	element.bind('change', function(event) {
 					      		scope.errorMsg = "";
 					      		var reader = new FileReader();
 					      		scope.inputFileObj = {
@@ -59,7 +44,7 @@
 	                                type: event.target.files[0].type,
 		                        };
 		                        reader.onload = function(loadEvent) {
-						      		if (isFileImageType(scope.inputFileObj.name)) {
+						      		if (isFileImageType(getInputFileType(scope.inputFileObj.name))) {
 						      			var img = new Image;
 						      			img.onload = function() {
 						      				scope.inputFileObj.resolution = img.width + "x" + img.height;
@@ -73,12 +58,19 @@
 						      		}
 		                        }
 		                        reader.readAsDataURL(event.target.files[0]);
+		                    });
+
+
+					    	function isFileImageType(inputFileExtension) {
+					    		var imgExtensionList = ['png', 'jpg', 'jpeg', 'gif', 'bmp'];
+					    		return imgExtensionList.indexOf(inputFileExtension) > -1 ? true : false;
+					    	}
 
 		                    function handleAfterLoadEvent(inputFileObj, isImage){
 		                    	var inputFileCorrectness = getInputFileCorrectness(inputFileObj, isImage);
 			      				if (isInputFileGood(inputFileCorrectness, isImage)) {
+			      					scope.ngModel = isImage ? inputFileObj.imgData : inputFileObj.data;
 			      					scope.$apply();
-			      					setNgModelValue(inputFileObj, isImage);
 			      				} else {
 			      					loadErrorMsg(inputFileCorrectness);
 			      				}
@@ -117,13 +109,13 @@
 	                    	}
 
 	                    	function isInputFileGood(fileCorrectness, isImage) {
-	                    		var isFileGood = fileCorrectness.size && fileCorrectness.type;
+	                    		var isFileGood = fileCorrectness.size && fileCorrectness['file type'];
 	                    		return isImage ?  isFileGood && fileCorrectness.resolution : isFileGood;
 	                    	}
 
 	                    	function getInputFileType(name) {
 	                    		var tempArray = name.split(".");
-	                    		return tempArray[tempArray-1];
+	                    		return tempArray[tempArray.length-1];
 	                    	}
 
 	                    	function isInputTypeGood(type, fileExtension ,fileType) {
@@ -153,12 +145,28 @@
 
 	                    	scope.removeFile = function() {
 	                    		scope.inputFileObj = {};
+	                    		scope.ngModel = undefined;
 	                    	};
 
-	                    	function setNgModelValue(inputFileObj, isImage) {
-
-	                    	}                	
-					    })
+	                    	if (scope.ngModel) {
+					    		fetch(scope.ngModel).then(function(res){
+					    			var fileType = getInputFileType(res.url);
+					    			if (isFileImageType(fileType)) {
+					    				scope.inputFileObj = {
+					    					'name' : 'abc',
+					    					'imgData' : res.url
+					    				};
+					    			} else {
+					    				scope.inputFileObj = {
+					    					'name' : 'abc'
+					    				};
+					    			}
+					    			scope.$apply();
+					    		})
+					    		.catch(function(err) {
+					    			console.log(err);
+					    		})
+					    	}       	
 				    },
 				};
 			});
@@ -167,51 +175,68 @@
 </head>
 <body>
 <div ng-controller="MainCtrl">
-	<file-uploader type="pdf" max-size="" min-size="" ng-model="src" max-resolution="800x600" min-resolution=""></file-uploader>
+	<file-uploader type="pdf" max-size="" min-size="1000x1000" ng-model="src" max-resolution="" min-resolution=""></file-uploader>
+	<div>
+		<button ng-click="getFile()">get filk</button>
+	</div>
+	
 </body>
 </html>
 <script id="template.html" type="text/ng-template">
-	<div id="fileInputContainer">
-		<label for="fileInput" id="fileInputLabel">Choose File</label>
-		<input type="file" name="file" id="fileInput" class="hidden" ng-model="inputFile">
-		<div ng-if="errorMsg">
-			<span  class="errMsg">{{errorMsg}}</span>
-		</div>
-		
-	</div>
-	<div id="filePreviewDiv" ng-if="inputFileObj.name">
-		<div class="row">
-			<div class="pull-left" id="fileNameContainer">
-				<span>{{inputFileObj.name}}</span>
+	<div class="mainDiv">
+		<div id="fileInputContainer">
+			<label for="fileInput" id="fileInputLabel" ng-class="inputFileObj.name ? 'ng-hide' : 'ng-show' ">Choose File</label>
+			<input type="file" name="file" id="fileInput" class="hidden" ng-model="inputFile">
+			<div ng-if="errorMsg">
+				<span  class="errMsg">{{errorMsg}}</span>
 			</div>
-			<div class="pull-right">
-				<button id="removeFileBtn" class="btn btn-default" ng-click="removeFile()">Remove</button>
+			
+		</div>
+		<div id="filePreviewDiv" ng-if="inputFileObj.name" class="col-md-2">
+			<div class="row">
+				<div class="pull-left" id="fileNameContainer">
+					<span>{{inputFileObj.name}}</span>
+				</div>
+				<div class="pull-right">
+					<button id="removeFileBtn" class="btn btn-xs btn-danger" ng-click="removeFile()"><strong>Remove</strong></button>
+				</div>
+			</div>
+			<div id="imageContainer" ng-if="inputFileObj.imgData">
+				<img id="inputImage" class="img-thumbnail" ng-src="{{inputFileObj.imgData}}" alt="Preview Image">
 			</div>
 		</div>
-		<div id="imageContainer" ng-if="inputFileObj.imgData">
-			<img id="inputImage" class="img-thumbnail" ng-src="{{inputFileObj.imgData}}" alt="Preview Image">
-		</div>
 	</div>
+	
 
 </script>
 <style>
-	#fileInputLabel {
-		line-height: 16px;
-	    padding: .2em .4em;
-	    margin: .2em;
+	.mainDiv {
+		position: relative;
+		padding: 10px;
 	}
 	#inputImage {
 		height: 200px;
-		width: 200px;	
+		width: 200px;
+	}
+	#filePreviewDiv {
+		padding: 10px;
+		border: 1px solid #c7c5c5;
+	}
+	#filePreviewDiv .row {
+		margin-bottom: 5px 
 	}
 	#fileNameContainer {
 		text-overflow: ellipsis;
 	    white-space: nowrap;
-	    width: 200px;
+	    width: 156px;
 	    overflow: hidden;
 	}
+	#fileNameContainer span {
+		padding: 10px;
+		margin: 0 10px;
+	}
 	.errMsg {
-		color: red;
+		color: #ff6969;
 	}
 </style>
 </script>
