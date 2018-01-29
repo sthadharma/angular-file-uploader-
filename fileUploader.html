@@ -4,21 +4,21 @@
 	<meta charset="UTF-8">
 	<title>Document</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-	<link rel="stylesheet"; href="https://unpkg.com/ng-table@2.0.2/bundles/ng-table.min.css">
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
 	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" />
     <script data-require="angular.js@1.4.x" src="https://code.angularjs.org/1.4.8/angular.js" data-semver="1.4.8"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.14.3/ui-bootstrap-tpls.js"></script>
+	<script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
 	<script>
 		(function(angular) {
 
 		  	var app = angular.module('myApp', []);
-		  		app.controller('MainCtrl',['$scope', function($scope) {
-		  			// $scope.src = 'https://cdn.esewa.com.np/documents/users/364/364696/HZtVSL1Dtv4nXk1FuTCg94XnH7FnLOq0.jpg';
+		  		app.controller('MainCtrl',['$scope','$http',function($scope, $http) {
+		  			// $scope.src = 'https://www.tutorialspoint.com/data_mining/data_mining_tutorial.pdf';
 		  			$scope.getFile = function() {
 		  				console.log($scope.src);	  			}
 		  		}]);
-				app.directive('fileUploader', function() {
+				app.directive('fileUploader', [ '$sce', '$compile', '$http', function($sce, $compile, $http) {
 				  	return {
 					    restrict : 'E',
 					    require : '?^ngModel',
@@ -37,8 +37,6 @@
 					      		scope.errorMsg = "";
 					      		var reader = new FileReader();
 					      		scope.inputFileObj = {
-	                                lastModified: event.target.files[0].lastModified,
-	                                lastModifiedDate: event.target.files[0].lastModifiedDate,
 	                                name: event.target.files[0].name,
 	                                size: event.target.files[0].size / (1024*1024),
 	                                type: event.target.files[0].type,
@@ -52,14 +50,13 @@
 						      				handleAfterLoadEvent(scope.inputFileObj, true);
 						      			}
 						      			img.src = reader.result;
-						      		} else {
+						      		} else if (scope.inputFileObj.type == 'application/pdf') {
 						      			scope.inputFileObj.fileData = loadEvent.target.result;
 						      			handleAfterLoadEvent(scope.inputFileObj);
 						      		}
 		                        }
 		                        reader.readAsDataURL(event.target.files[0]);
 		                    });
-
 
 					    	function isFileImageType(inputFileExtension) {
 					    		var imgExtensionList = ['png', 'jpg', 'jpeg', 'gif', 'bmp'];
@@ -70,7 +67,7 @@
 		                    	var inputFileCorrectness = getInputFileCorrectness(inputFileObj, isImage);
 			      				if (isInputFileGood(inputFileCorrectness, isImage)) {
 			      					scope.ngModel = isImage ? inputFileObj.imgData : inputFileObj.data;
-			      					scope.$apply();
+			      					loadPreviewDataInUi(inputFileObj, isImage);
 			      				} else {
 			      					loadErrorMsg(inputFileCorrectness);
 			      				}
@@ -85,7 +82,6 @@
 	                    		});
 	                    		scope.errorMsg = "Incorrect " + badProps.join(", ");
 	                    		scope.removeFile();
-	                    		scope.$apply();
 	                    	}
 
 	                    	function getInputFileCorrectness(inputFileObj, isImage) {
@@ -146,75 +142,180 @@
 	                    	scope.removeFile = function() {
 	                    		scope.inputFileObj = {};
 	                    		scope.ngModel = undefined;
+	                    		scope.previewData = false;
 	                    	};
 
+	                    	function loadPreviewDataInUi(inputFileObj, isImage, isFromLink) {
+	                    		loadPreviewDiv(inputFileObj, isImage, isFromLink);
+	                    		if (inputFileObj.type === "application/pdf") {
+	                    			loadPdfInUi(inputFileObj.fileData)
+			      				}
+	                    	}
+
+	                    	function loadPreviewDiv(inputFileObj, isImage, isFromLink) {
+	                    		var previewDiv = '<div> \
+													<div class="row"> \
+														<div class="pull-left"> \
+															<span>' + inputFileObj.name + '</span> \
+														</div> \
+														<div class="pull-right"> \
+															<button class="btn btn-xs btn-danger" ng-click="removeFile()"><strong>Remove</strong></button> \
+														</div> \
+													</div> \
+												<div>';
+
+								if (isImage) {
+									previewDiv += '<img class="img-thumbnail" src="'+ inputFileObj.imgData +'" alt="Preview Image">';
+								} else {
+									setRandomCanvasIdFromData(inputFileObj.fileData);
+									previewDiv += '<canvas id="' + scope.canvasId + '" ></canvas>';
+								}
+
+								previewDiv += '</div> \
+										</div>';
+
+								scope.previewData = $sce.trustAsHtml(previewDiv);
+								if (!isFromLink) {
+									scope.$apply();
+								}
+	                    	}
+
+	                    	function setRandomCanvasIdFromData(data) {
+	                    		var tempData = data.split('data:application/pdf;base64,')[1];
+	                    		var substr = tempData.substring(100,200);
+
+	                    		var tempData1 = tempData.split(substr)[0];
+	                    		var substr1 = tempData1.substring(90,95);
+	                    		scope.canvasId = tempData1.split(substr1)[1];
+	                    	}
+
+	                    	function loadPdfInUi(data) {
+	                    		var pdfData = atob(data.split('data:application/pdf;base64,')[1]);
+				      			PDFJS.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.js';
+
+								var loadingTask = PDFJS.getDocument({data: pdfData});
+								loadingTask.promise.then(function(pdf) {
+								  console.log('PDF loaded');
+								  
+								  var pageNumber = 1;
+								  pdf.getPage(pageNumber).then(function(page) {
+								    console.log('Page loaded');
+								    
+								    var scale = .5;
+								    var viewport = page.getViewport(scale);
+
+								    var canvas = document.getElementById(scope.canvasId);
+								    var context = canvas.getContext('2d');
+								    canvas.height = viewport.height;
+								    canvas.width = viewport.width;
+
+								    var renderContext = {
+								      canvasContext: context,
+								      viewport: viewport
+								    };
+								    var renderTask = page.render(renderContext);
+								    renderTask.then(function () {
+
+								    });
+								  });
+								}, function (reason) {
+								  console.error(reason);
+								});
+	                    	}
+
 	                    	if (scope.ngModel) {
-					    		fetch(scope.ngModel).then(function(res){
-					    			var fileType = getInputFileType(res.url);
-					    			if (isFileImageType(fileType)) {
-					    				scope.inputFileObj = {
-					    					'name' : 'abc',
-					    					'imgData' : res.url
+				    			var fileType = getInputFileType(scope.ngModel);
+				    			if (isFileImageType(fileType)) {
+				    				scope.inputFileObj = {
+				    					'name' : getFileNameFromLink(scope.ngModel),
+				    					'imgData' : scope.ngModel,
+				    					'type' : getInputFileType(scope.ngModel)
+				    				};
+				    				loadPreviewDataInUi(scope.inputFileObj, true, fromLink=true);
+				    			} else {
+				    				loadBase64CodeFromPdfLink(scope.ngModel, function(base64Code) {
+				    					scope.inputFileObj = {
+					    					'name' : getFileNameFromLink(scope.ngModel),
+					    					'fileData' : base64Code,
+					    					'type' : 'application/pdf'
 					    				};
-					    			} else {
-					    				scope.inputFileObj = {
-					    					'name' : 'abc'
-					    				};
-					    			}
-					    			scope.$apply();
-					    		})
-					    		.catch(function(err) {
-					    			console.log(err);
-					    		})
-					    	}       	
+					    				loadPreviewDataInUi(scope.inputFileObj, false, fromLink=true);
+				    				});
+				    			}
+					    	}
+
+					    	function getFileNameFromLink(link) {
+	                    		var tempArray = link.split("/");
+	                    		return tempArray[tempArray.length-1];
+	                    	}
+
+					    	function loadBase64CodeFromPdfLink(link, fn) {
+					    		$http.get(link, {
+								    responseType: 'arraybuffer'
+								}).then(function (response) {
+									var base64Code = 'data:application/pdf;base64,' + getBase64FromArrayBuffer(response.data);
+									if (typeof fn  === 'function') fn(base64Code);
+								})
+								.catch(function(err) {
+									console.log(err);
+								});
+					    	}
+					    	
+
+							function getBase64FromArrayBuffer(buffer) {
+							    var binary = '';
+							    var bytes = new Uint8Array(buffer);
+							    var len = bytes.byteLength;
+							    for (var i = 0; i < len; i++) {
+							        binary += String.fromCharCode(bytes[i]);
+							    }
+							    return btoa(binary);
+							}
+       	
 				    },
 				};
-			});
+			}]);
+			app.directive('customBindCompileHtml', ['$compile', function ($compile) {
+		        return {
+		            restrict: 'A',
+		            link: function (scope, iElement, iAttrs) {
+		                scope.$watch(function () {
+		                    return scope.$eval(iAttrs.customBindCompileHtml);
+		                }, function (html) {
+		                    iElement.html(html);
+		                    $compile(iElement.contents())(scope);
+		                });
+		            }
+		        };
+		    }]);
 		})(window.angular);
 	</script>
 </head>
 <body>
 <div ng-controller="MainCtrl">
-	<file-uploader type="jpg" max-size="0.5" min-size="" ng-model="src" max-resolution="" min-resolution=""></file-uploader>
-	<div>
-		<button ng-click="getFile()">get filk</button>
-	</div>
-	
+	<file-uploader type="" max-size="" min-size="" ng-model="src" max-resolution="" min-resolution=""></file-uploader>
 </body>
 </html>
 <script id="template.html" type="text/ng-template">
 	<div class="mainDiv">
-		<div id="fileInputContainer">
+		<div class="fileInputContainer">
 			<label for="fileInput" id="fileInputLabel" ng-class="inputFileObj.name ? 'ng-hide' : 'ng-show' ">Choose File</label>
 			<input type="file" name="file" id="fileInput" class="hidden" ng-model="inputFile">
 			<div ng-if="errorMsg">
-				<span  class="errMsg">{{errorMsg}}</span>
+				<span class="errMsg">{{errorMsg}}</span>
 			</div>
-			
 		</div>
-		<div id="filePreviewDiv" ng-if="inputFileObj.name" class="col-md-2">
-			<div class="row">
-				<div class="pull-left" id="fileNameContainer">
-					<span>{{inputFileObj.name}}</span>
-				</div>
-				<div class="pull-right">
-					<button id="removeFileBtn" class="btn btn-xs btn-danger" ng-click="removeFile()"><strong>Remove</strong></button>
-				</div>
-			</div>
-			<div id="imageContainer" ng-if="inputFileObj.imgData">
-				<img id="inputImage" class="img-thumbnail" ng-src="{{inputFileObj.imgData}}" alt="Preview Image">
-			</div>
+		<div ng-if="previewData">
+			<div custom-bind-compile-html="previewData"></div>
 		</div>
 	</div>
-	
-
 </script>
 <style>
 	.mainDiv {
 		position: relative;
 		padding: 10px;
 	}
-	#inputImage {
+	/*#inputImage {
 		height: 200px;
 		width: 200px;
 	}
@@ -234,7 +335,7 @@
 	#fileNameContainer span {
 		padding: 10px;
 		margin: 0 10px;
-	}
+	}*/
 	.errMsg {
 		color: #ff6969;
 	}
