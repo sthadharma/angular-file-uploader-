@@ -34,29 +34,31 @@
 					    link: function(scope, element, attr, ngCtrl) {
 					    	element.bind('change', function(event) {
 					      		scope.errorMsg = "";
-					      		var reader = new FileReader();
-					      		scope.inputFileObj = {
-	                                name: event.target.files[0].name,
-	                                size: event.target.files[0].size / (1024*1024),
-	                                type: event.target.files[0].type,
-		                        };
-		                        reader.onload = function(loadEvent) {
-		                        	if (scope.inputFileObj.type == 'application/pdf') {
-						      			scope.inputFileObj.fileData = loadEvent.target.result;
-						      		}
-						      		if (isFileImageType(getInputFileType(scope.inputFileObj.name))) {
-						      			var img = new Image;
-						      			img.onload = function() {
-						      				scope.inputFileObj.resolution = img.width + "x" + img.height;
-						      				scope.inputFileObj.imgData = img.src;
-						      				handleAfterLoadEvent(scope.inputFileObj, true);
-						      			}
-						      			img.src = reader.result;
-						      		} else {
-						      			handleAfterLoadEvent(scope.inputFileObj);
-						      		}
-		                        }
-		                        reader.readAsDataURL(event.target.files[0]);
+					      		if (event.target.files.length) {
+					      			scope.inputFileObj = {
+		                                name: event.target.files[0].name,
+		                                size: event.target.files[0].size / (1024*1024),
+		                                type: event.target.files[0].type,
+			                        };
+			                        var reader = new FileReader();
+			                        reader.onload = function(loadEvent) {
+			                        	if (scope.inputFileObj.type == 'application/pdf') {
+							      			scope.inputFileObj.fileData = loadEvent.target.result;
+							      		}
+							      		if (isFileImageType(getInputFileType(scope.inputFileObj.name))) {
+							      			var img = new Image;
+							      			img.onload = function() {
+							      				scope.inputFileObj.resolution = img.width + "x" + img.height;
+							      				scope.inputFileObj.imgData = img.src;
+							      				handleAfterLoadEvent(scope.inputFileObj, true);
+							      			}
+							      			img.src = reader.result;
+							      		} else {
+							      			handleAfterLoadEvent(scope.inputFileObj);
+							      		}
+			                        }
+			                        reader.readAsDataURL(event.target.files[0]);
+					      		}
 		                    });
 
 					    	function isFileImageType(inputFileExtension) {
