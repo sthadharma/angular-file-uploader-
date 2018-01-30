@@ -41,6 +41,9 @@
 	                                type: event.target.files[0].type,
 		                        };
 		                        reader.onload = function(loadEvent) {
+		                        	if (scope.inputFileObj.type == 'application/pdf') {
+						      			scope.inputFileObj.fileData = loadEvent.target.result;
+						      		}
 						      		if (isFileImageType(getInputFileType(scope.inputFileObj.name))) {
 						      			var img = new Image;
 						      			img.onload = function() {
@@ -49,8 +52,7 @@
 						      				handleAfterLoadEvent(scope.inputFileObj, true);
 						      			}
 						      			img.src = reader.result;
-						      		} else if (scope.inputFileObj.type == 'application/pdf') {
-						      			scope.inputFileObj.fileData = loadEvent.target.result;
+						      		} else {
 						      			handleAfterLoadEvent(scope.inputFileObj);
 						      		}
 		                        }
@@ -292,8 +294,8 @@
 </head>
 <body>
 <div ng-controller="MainCtrl">
-	<file-uploader type="pdf, jpg, png" max-size="0.5" min-size="" ng-model="src" max-resolution="" min-resolution=""></file-uploader>
-	<file-uploader type="" max-size="0.5" min-size="" ng-model="a" max-resolution="" min-resolution=""></file-uploader>
+	<file-uploader type="pdf" max-size="0.5" min-size="" ng-model="src" max-resolution="" min-resolution=""></file-uploader>
+	<file-uploader type="jpg" max-size="0.5" min-size="" ng-model="a" max-resolution="" min-resolution=""></file-uploader>
 </body>
 </html>
 <script id="template.html" type="text/ng-template">
