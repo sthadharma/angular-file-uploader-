@@ -11,10 +11,9 @@
 	<script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
 	<script>
 		(function(angular) {
-
 		  	var app = angular.module('myApp', []);
 		  		app.controller('MainCtrl',['$scope','$http',function($scope, $http) {
-		  			// $scope.src = 'https://www.tutorialspoint.com/data_mining/data_mining_tutorial.pdf';
+		  			$scope.src = 'https://www.tutorialspoint.com/data_mining/data_mining_tutorial.pdf';
 		  			$scope.getFile = function() {
 		  				console.log($scope.src);	  			}
 		  		}]);
@@ -82,13 +81,14 @@
 	                    		});
 	                    		scope.errorMsg = "Incorrect " + badProps.join(", ");
 	                    		scope.removeFile();
+	                    		scope.$apply();
 	                    	}
 
 	                    	function getInputFileCorrectness(inputFileObj, isImage) {
 	                    		scope.minSize = scope.minSize || 0;
 	                    		scope.maxSize = scope.maxSize || 25;
 	                    		var isSizeGood = inputFileObj.size > scope.minSize && inputFileObj.size < scope.maxSize;
-	                    		var isTypeGood = isInputTypeGood(scope.type, getInputFileType(inputFileObj.name), inputFileObj.type);
+	                    		var isTypeGood = isInputTypeGood(scope.type, getInputFileType(inputFileObj.name));
 	                    			                    		
 	                    		if (isImage) {
 	                    			return {
@@ -114,8 +114,16 @@
 	                    		return tempArray[tempArray.length-1];
 	                    	}
 
-	                    	function isInputTypeGood(type, fileExtension ,fileType) {
-	                    		return type ? scope.type == fileExtension || scope.type == fileType : true;
+	                    	function isInputTypeGood(type, fileExtension) {
+	                    		var tempType = [];
+	                    		if (type.indexOf(',') > -1) {
+	                    			tempType = type.split(',').map(function(types) {
+	                    				return String(types).replace(/^\s+|\s+$/g, "");
+	                    			});
+	                    		} else {
+	                    			tempType = [type];
+	                    		} 
+	                    		return type ? tempType.indexOf(fileExtension) > -1 : true;
 	                    	}
 
 	                    	function isResolutionForImageGood(maxResolution, minResolution, inputImageResolution) {
@@ -154,16 +162,13 @@
 
 	                    	function loadPreviewDiv(inputFileObj, isImage, isFromLink) {
 	                    		var previewDiv = '<div> \
-													<div class="row"> \
-														<div class="pull-left"> \
-															<span>' + inputFileObj.name + '</span> \
-														</div> \
-														<div class="pull-right"> \
-															<button class="btn btn-xs btn-danger" ng-click="removeFile()"><strong>Remove</strong></button> \
-														</div> \
+													<div class="input-group"> \
+														<input type="text" class="form-control" disabled value="' + inputFileObj.name + '"> \
+														<div class="input-group-btn"> \
+															<button class="btn btn-danger" ng-click="removeFile()">Remove</button> \
+														</div>\
 													</div> \
-												<div>';
-
+													<div class="previewDivContainer"> ';
 								if (isImage) {
 									previewDiv += '<img class="img-thumbnail" src="'+ inputFileObj.imgData +'" alt="Preview Image">';
 								} else {
@@ -172,7 +177,7 @@
 								}
 
 								previewDiv += '</div> \
-										</div>';
+												</div>';
 
 								scope.previewData = $sce.trustAsHtml(previewDiv);
 								if (!isFromLink) {
@@ -195,28 +200,22 @@
 
 								var loadingTask = PDFJS.getDocument({data: pdfData});
 								loadingTask.promise.then(function(pdf) {
-								  console.log('PDF loaded');
-								  
-								  var pageNumber = 1;
-								  pdf.getPage(pageNumber).then(function(page) {
-								    console.log('Page loaded');
-								    
-								    var scale = .5;
-								    var viewport = page.getViewport(scale);
+								  	var pageNumber = 1;
+								  	pdf.getPage(pageNumber).then(function(page) {
+									    var scale = .5;
+									    var viewport = page.getViewport(scale);
 
-								    var canvas = document.getElementById(scope.canvasId);
-								    var context = canvas.getContext('2d');
-								    canvas.height = viewport.height;
-								    canvas.width = viewport.width;
+									    var canvas = document.getElementById(scope.canvasId);
+									    var context = canvas.getContext('2d');
+									    canvas.height = viewport.height;
+									    // canvas.width = viewport.width;
 
-								    var renderContext = {
-								      canvasContext: context,
-								      viewport: viewport
-								    };
-								    var renderTask = page.render(renderContext);
-								    renderTask.then(function () {
-
-								    });
+									    var renderContext = {
+									      	canvasContext: context,
+									      	viewport: viewport
+									    };
+									    var renderTask = page.render(renderContext);
+									    renderTask.then(function () {});
 								  });
 								}, function (reason) {
 								  console.error(reason);
@@ -293,14 +292,22 @@
 </head>
 <body>
 <div ng-controller="MainCtrl">
-	<file-uploader type="" max-size="" min-size="" ng-model="src" max-resolution="" min-resolution=""></file-uploader>
+	<file-uploader type="pdf, jpg, png" max-size="0.5" min-size="" ng-model="src" max-resolution="" min-resolution=""></file-uploader>
+	<file-uploader type="" max-size="0.5" min-size="" ng-model="a" max-resolution="" min-resolution=""></file-uploader>
 </body>
 </html>
 <script id="template.html" type="text/ng-template">
 	<div class="mainDiv">
 		<div class="fileInputContainer">
-			<label for="fileInput" id="fileInputLabel" ng-class="inputFileObj.name ? 'ng-hide' : 'ng-show' ">Choose File</label>
-			<input type="file" name="file" id="fileInput" class="hidden" ng-model="inputFile">
+			<div class="input-group" ng-class="inputFileObj.name ? 'ng-hide' : 'ng-show'">
+				<input type="text" class="form-control" disabled>
+				<div class="input-group-btn">
+					<label class="btn btn-primary">
+						<input type="file" name="file" class="hidden" ng-model="inputFile">
+					Choose File
+				</label>
+				</div>
+			</div>
 			<div ng-if="errorMsg">
 				<span class="errMsg">{{errorMsg}}</span>
 			</div>
@@ -314,30 +321,14 @@
 	.mainDiv {
 		position: relative;
 		padding: 10px;
+		max-width: 25%;
 	}
-	/*#inputImage {
-		height: 200px;
-		width: 200px;
+	.previewDivContainer {
+		border: 1px solid #bdbdbd;
+    	margin-top: 1px;
 	}
-	#filePreviewDiv {
-		padding: 10px;
-		border: 1px solid #c7c5c5;
-	}
-	#filePreviewDiv .row {
-		margin-bottom: 5px 
-	}
-	#fileNameContainer {
-		text-overflow: ellipsis;
-	    white-space: nowrap;
-	    width: 156px;
-	    overflow: hidden;
-	}
-	#fileNameContainer span {
-		padding: 10px;
-		margin: 0 10px;
-	}*/
 	.errMsg {
-		color: #ff6969;
+		color: #ff2c2c;
 	}
 </style>
 </script>
